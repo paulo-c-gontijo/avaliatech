@@ -1,0 +1,27 @@
+name: Export Dart toolchain
+on:
+  push:
+    branches: [feature/flutter-avaliatech]
+    paths: [.github/workflows/export-toolchain.yml]
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.2'
+          channel: stable
+          cache: true
+      - name: Package Dart SDK
+        run: tar -czf /tmp/dart-sdk.tar.gz -C "$FLUTTER_ROOT/bin/cache" dart-sdk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dart-sdk-linux
+          path: /tmp/dart-sdk.tar.gz
+          compression-level: 0
