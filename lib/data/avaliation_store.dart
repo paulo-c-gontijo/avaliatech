@@ -167,10 +167,11 @@ class AvaliationStore extends ChangeNotifier {
       'configuracoes': configuracoes.values.map((e) => e.toJson()).toList(),
     };
     final ok = await preferences.setString(_key, jsonEncode(j));
-    if (!ok)
+    if (!ok) {
       throw AvaliaTechException(
         'Não foi possível salvar os dados neste dispositivo.',
       );
+    }
     notifyListeners();
   }
 
@@ -545,8 +546,9 @@ class AvaliationStore extends ChangeNotifier {
 
   bool podeIniciar(PublicacaoQuestionario p) {
     if (atual?.papel != Papel.estudante ||
-        !minhasPublicacoes.any((e) => e.id == p.id))
+        !minhasPublicacoes.any((e) => e.id == p.id)) {
       return false;
+    }
     return p.estaDisponivel() &&
         tentativasDe(p.id, estudanteId: uid).length < p.limiteTentativas;
   }
@@ -614,11 +616,12 @@ class AvaliationStore extends ChangeNotifier {
     exigir(!tempoEsgotado(t), 'O tempo da avaliação terminou.');
     final q = conteudo(publicacao(t.publicacaoId)).questao(questaoId);
     exigir(t.ordemQuestoes.contains(q.id), 'Questão inválida.');
-    if (alternativaId != null)
+    if (alternativaId != null) {
       exigir(
         q.alternativas.any((a) => a.id == alternativaId),
         'Alternativa inválida.',
       );
+    }
     var r = t.resposta(q.id);
     if (r == null) {
       r = Resposta(
@@ -682,9 +685,9 @@ class AvaliationStore extends ChangeNotifier {
       }
       if (r.pontuacaoObtida != null) {
         pontos += r.pontuacaoObtida!;
-        if (r.correta == true)
+        if (r.correta == true) {
           acertos++;
-        else if (r.correta == false)
+        } else if (r.correta == false)
           erros++;
       }
     }
@@ -734,7 +737,7 @@ class AvaliationStore extends ChangeNotifier {
     t.status = resultado.provisorio
         ? StatusTentativa.enviada
         : StatusTentativa.corrigida;
-    if (!resultado.provisorio)
+    if (!resultado.provisorio) {
       _notificar(
         t.estudanteId,
         'Resultado disponível',
@@ -742,6 +745,7 @@ class AvaliationStore extends ChangeNotifier {
         TipoNotificacao.resultadoDisponivel,
         p.id,
       );
+    }
     await salvar();
   }
 
@@ -768,11 +772,12 @@ class AvaliationStore extends ChangeNotifier {
           (professor && publicacao(t.publicacaoId).professorId == uid),
       'Resultado não autorizado.',
     );
-    if (!professor)
+    if (!professor) {
       exigir(
         publicacao(t.publicacaoId).mostrarResultado,
         'O professor ainda não liberou o resultado.',
       );
+    }
   }
 
   Future<void> marcarLida(String id) async {
@@ -838,8 +843,9 @@ class AvaliationStore extends ChangeNotifier {
     final ultimas = <String, Tentativa>{};
     for (final t in concluidas) {
       final old = ultimas[t.estudanteId];
-      if (old == null || t.numeroTentativa > old.numeroTentativa)
+      if (old == null || t.numeroTentativa > old.numeroTentativa) {
         ultimas[t.estudanteId] = t;
+      }
     }
     final validos = ultimas.values
         .map((t) => resultadoDaTentativa(t.id))
@@ -998,7 +1004,8 @@ class AvaliationStore extends ChangeNotifier {
       id: 'demo-questionario',
       professorId: professorId,
       titulo: 'Avaliação de Python — Funções',
-      descricao: 'Avalie seus conhecimentos de funções, operadores e estruturas de dados.',
+      descricao:
+          'Avalie seus conhecimentos de funções, operadores e estruturas de dados.',
       dataCriacao: now,
       dataAtualizacao: now,
       duracaoMinutos: 45,

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../data/avaliation_store.dart';
 import '../domain/models.dart';
 import '../ui/common.dart';
 import 'teacher_banks.dart';
@@ -141,7 +140,9 @@ class _QuestionnaireWizardState extends State<QuestionnaireWizard> {
     setState(() {
       final item = itens.removeAt(index);
       itens.insert(to, item);
-      for (var i = 0; i < itens.length; i++) itens[i].ordem = i;
+      for (var i = 0; i < itens.length; i++) {
+        itens[i].ordem = i;
+      }
     });
   }
 
@@ -552,10 +553,11 @@ class _PublicationEditorState extends State<PublicationEditor> {
                         subtitle: Text(t.disciplina),
                         value: selected.contains(t.id),
                         onChanged: (v) => setState(() {
-                          if (v == true)
+                          if (v == true) {
                             selected.add(t.id);
-                          else
+                          } else {
                             selected.remove(t.id);
+                          }
                         }),
                       ),
                     )

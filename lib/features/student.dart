@@ -433,7 +433,9 @@ class _StudentEvaluationsState extends State<StudentEvaluations> {
             tab == 0
                 ? 'Nenhuma avaliação pendente'
                 : 'Nenhuma avaliação concluída',
-            tab == 0 ? 'Suas próximas atividades aparecerão aqui.' : 'Quando você enviar uma avaliação, ela aparecerá no histórico.',
+            tab == 0
+                ? 'Suas próximas atividades aparecerão aqui.'
+                : 'Quando você enviar uma avaliação, ela aparecerá no histórico.',
           )
         else
           ...list.map((p) => StudentAssessmentCard(p, completed: tab == 1)),
@@ -592,11 +594,12 @@ class AssessmentInstructions extends StatelessWidget {
         onPressed: canStart
             ? () async {
                 final t = await runAction(context, () => s.iniciar(p.id));
-                if (t != null && context.mounted)
+                if (t != null && context.mounted) {
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (_) => ExamSession(t.id)),
                   );
+                }
               }
             : null,
       ),
@@ -840,10 +843,11 @@ class _ExamSessionState extends State<ExamSession> {
                     onPressed: busy
                         ? null
                         : () => setState(() {
-                            if (index == total - 1)
+                            if (index == total - 1) {
                               review = true;
-                            else
+                            } else {
                               index++;
+                            }
                           }),
                   ),
                 ],

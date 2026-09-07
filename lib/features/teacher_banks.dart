@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../data/avaliation_store.dart';
 import '../domain/models.dart';
 import '../ui/common.dart';
 import 'teacher_editor.dart';
@@ -319,8 +318,9 @@ class _QuestionEditorState extends State<QuestionEditor> {
         : q.alternativas
               .map((a) => TextEditingController(text: a.texto))
               .toList();
-    if (alternatives.isEmpty)
+    if (alternatives.isEmpty) {
       alternatives = List.generate(4, (_) => TextEditingController());
+    }
     if (q != null && q.objetiva) {
       final i = q.alternativas.indexWhere((a) => a.correta);
       if (i >= 0) correct = i;
@@ -607,11 +607,12 @@ class _QuestionnaireCard extends StatelessWidget {
                         'As publicações anteriores e seus resultados serão preservados.',
                         destructive: true,
                       )) {
-                    if (context.mounted)
+                    if (context.mounted) {
                       await runAction(
                         context,
                         () => s.arquivarQuestionario(q.id),
                       );
+                    }
                   }
                 },
                 itemBuilder: (_) => const [

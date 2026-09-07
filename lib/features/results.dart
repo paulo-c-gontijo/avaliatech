@@ -165,8 +165,9 @@ class _DashboardPageState extends State<DashboardPage> {
     );
     final ids = <String>{};
     for (final tid in p.turmas) {
-      if (turmaId == null || turmaId == tid)
+      if (turmaId == null || turmaId == tid) {
         ids.addAll(s.turma(tid).estudanteIds);
+      }
     }
     final selectedStudent = ids.contains(estudanteId) ? estudanteId : null;
     final pending = s.resultadosDe(p.id).where((r) => r.provisorio).length;
@@ -492,8 +493,9 @@ class StudentResultsPage extends StatelessWidget {
     final p = s.publicacao(id);
     final allowed = <String>{};
     for (final tid in p.turmas) {
-      if (turmaId == null || tid == turmaId)
+      if (turmaId == null || tid == turmaId) {
         allowed.addAll(s.turma(tid).estudanteIds);
+      }
     }
     final attempts =
         s
@@ -726,12 +728,13 @@ class GradeAttemptPage extends StatelessWidget {
       ),
     );
     controller.dispose();
-    if (value != null && context.mounted)
+    if (value != null && context.mounted) {
       await runAction(
         context,
         () => s.corrigirResposta(t.id, item.questaoId, value),
         success: 'Correção registrada.',
       );
+    }
   }
 }
 
@@ -756,7 +759,7 @@ class AttemptResultPage extends StatelessWidget {
     final p = s.publicacao(t.publicacaoId);
     final c = s.conteudo(p);
     final r = s.resultadoDaTentativa(t.id);
-    if (r == null)
+    if (r == null) {
       return const AppPage(
         title: 'Resultado',
         child: EmptyState(
@@ -764,6 +767,7 @@ class AttemptResultPage extends StatelessWidget {
           'A tentativa precisa ser enviada para gerar um resultado.',
         ),
       );
+    }
     return AppPage(
       title: 'Resultado da Avaliação',
       subtitle: c.titulo,
@@ -865,7 +869,7 @@ class AnswerDetailsPage extends StatelessWidget {
           final partial =
               !pending &&
               !blank &&
-              r!.pontuacaoObtida! > 0 &&
+              r.pontuacaoObtida! > 0 &&
               r.pontuacaoObtida! < item.pontuacao;
           final label = blank
               ? 'Em branco'
@@ -873,14 +877,14 @@ class AnswerDetailsPage extends StatelessWidget {
               ? 'Em correção'
               : partial
               ? 'Parcial'
-              : r!.correta == true
+              : r.correta == true
               ? 'Correta'
               : 'Incorreta';
           final color = blank || pending
               ? AppColors.muted
               : partial
               ? AppColors.warning
-              : r!.correta == true
+              : r.correta == true
               ? AppColors.success
               : AppColors.danger;
           final selected = q.objetiva

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../data/avaliation_store.dart';
 import '../domain/models.dart';
 import '../ui/common.dart';
-import 'teacher_editor.dart';
 import 'results.dart';
 
 class TeacherHome extends StatelessWidget {
@@ -388,12 +386,13 @@ class _TeacherClassDetailsState extends State<TeacherClassDetails> {
         PopupMenuButton<String>(
           onSelected: (v) async {
             if (v == 'editar') openPage(context, ClassEditor(initial: t));
-            if (v == 'codigo')
+            if (v == 'codigo') {
               await runAction(
                 context,
                 () => s.gerarNovoCodigo(t.id),
                 success: 'Novo código gerado.',
               );
+            }
             if (v == 'arquivar' &&
                 await confirmAction(
                   context,
@@ -506,11 +505,12 @@ class _TeacherClassDetailsState extends State<TeacherClassDetails> {
                               'Remover ${u.nome} desta turma?',
                               destructive: true,
                             )) {
-                              if (context.mounted)
+                              if (context.mounted) {
                                 await runAction(
                                   context,
                                   () => s.removerEstudante(t.id, id),
                                 );
+                              }
                             }
                           },
                           icon: const Icon(

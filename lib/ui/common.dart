@@ -138,12 +138,13 @@ Future<T?> runAction<T>(
     if (context.mounted && success != null) showMessage(context, success);
     return result;
   } catch (e) {
-    if (context.mounted)
+    if (context.mounted) {
       showMessage(
         context,
         e is AvaliaTechException ? e.message : e.toString(),
         error: true,
       );
+    }
     return null;
   }
 }
@@ -343,7 +344,7 @@ class SectionTitle extends StatelessWidget {
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
           ),
         ),
-        if (trailing != null) trailing!,
+        ?trailing,
       ],
     ),
   );

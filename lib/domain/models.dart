@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:math';
 
 String newId() =>
@@ -244,27 +243,31 @@ class Questao {
       tipo == TipoQuestao.multiplaEscolha ||
       tipo == TipoQuestao.verdadeiroFalso;
   void validar() {
-    if (enunciado.trim().isEmpty || disciplina.trim().isEmpty)
+    if (enunciado.trim().isEmpty || disciplina.trim().isEmpty) {
       throw StateError('Preencha o enunciado e a disciplina.');
+    }
     if (objetiva &&
         (alternativas.length < 2 ||
             alternativas.where((a) => a.correta).length != 1 ||
-            alternativas.any((a) => a.texto.trim().isEmpty)))
+            alternativas.any((a) => a.texto.trim().isEmpty))) {
       throw StateError(
         'A questão objetiva precisa de alternativas válidas e exatamente uma correta.',
       );
+    }
   }
 
   bool? validarResposta(Resposta r) {
-    if (objetiva)
+    if (objetiva) {
       return alternativas.any(
         (a) => a.id == r.alternativaSelecionadaId && a.correta,
       );
+    }
     if (tipo == TipoQuestao.respostaCurta &&
         respostaCorreta != null &&
-        respostaCorreta!.trim().isNotEmpty)
+        respostaCorreta!.trim().isNotEmpty) {
       return r.respostaTexto?.trim().toLowerCase() ==
           respostaCorreta!.trim().toLowerCase();
+    }
     return null;
   }
 
@@ -347,12 +350,14 @@ class Questionario {
   void validar() {
     if (titulo.trim().isEmpty ||
         itens.isEmpty ||
-        itens.any((i) => i.pontuacao <= 0))
+        itens.any((i) => i.pontuacao <= 0)) {
       throw StateError(
         'Informe um título e pelo menos uma questão com pontuação positiva.',
       );
-    if (duracaoMinutos != null && duracaoMinutos! <= 0)
+    }
+    if (duracaoMinutos != null && duracaoMinutos! <= 0) {
       throw StateError('A duração deve ser positiva.');
+    }
   }
 
   Map<String, dynamic> toJson() => {
@@ -406,8 +411,9 @@ class PublicacaoQuestionario {
   StatusPublicacao estado([DateTime? now]) {
     final t = now ?? DateTime.now();
     if (status == StatusPublicacao.cancelada ||
-        status == StatusPublicacao.encerrada)
+        status == StatusPublicacao.encerrada) {
       return status;
+    }
     if (t.isBefore(inicioDisponibilidade)) return StatusPublicacao.agendada;
     if (!t.isBefore(prazo)) return StatusPublicacao.encerrada;
     return StatusPublicacao.disponivel;
@@ -418,10 +424,11 @@ class PublicacaoQuestionario {
   void validar() {
     if (turmas.isEmpty ||
         limiteTentativas < 1 ||
-        !prazo.isAfter(inicioDisponibilidade))
+        !prazo.isAfter(inicioDisponibilidade)) {
       throw StateError(
         'Selecione turmas, um prazo válido e pelo menos uma tentativa.',
       );
+    }
   }
 
   Map<String, dynamic> toJson() => {
