@@ -22,7 +22,7 @@ jobs:
       - name: Resolve dependencies
         run: flutter pub get
       - name: Apply supported analyzer fixes
-        run: dart fix --apply lib test
+        run: dart fix --apply .
       - name: Format
         run: dart format lib test
       - name: Commit source and lockfile
