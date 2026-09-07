@@ -1,28 +1,761 @@
 import 'package:flutter/material.dart';
+
 import '../data/avaliation_store.dart';
 import '../domain/models.dart';
 import '../ui/common.dart';
 import 'teacher_banks.dart';
 
-class QuestionnaireWizard extends StatefulWidget{const QuestionnaireWizard({super.key,this.initial});final Questionario? initial;@override State<QuestionnaireWizard> createState()=>_QuestionnaireWizardState();}
-class _QuestionnaireWizardState extends State<QuestionnaireWizard>{late final TextEditingController titulo,descricao,disciplina,duracao;late final String id;late List<ItemQuestionario> itens;late bool shuffle;int step=0;bool busy=false;
-@override void initState(){super.initState();final q=widget.initial;id=q?.id??newId();titulo=TextEditingController(text:q?.titulo);descricao=TextEditingController(text:q?.descricao);disciplina=TextEditingController();duracao=TextEditingController(text:q?.duracaoMinutos?.toString()??'45');itens=q==null?[]:q.itens.map((i)=>ItemQuestionario.fromJson(i.toJson())).toList();shuffle=q?.embaralharQuestoes??false;}
-@override void dispose(){titulo.dispose();descricao.dispose();disciplina.dispose();duracao.dispose();super.dispose();}
-void next(){if(step==0 && titulo.text.trim().isEmpty){showMessage(context,'Informe o título do questionário.',error:true);return;}if(step==0 && duracao.text.trim().isNotEmpty && (int.tryParse(duracao.text)==null||int.parse(duracao.text)<=0)){showMessage(context,'Informe uma duração positiva ou deixe o campo vazio.',error:true);return;}if(step==1 && itens.isEmpty){showMessage(context,'Adicione pelo menos uma questão.',error:true);return;}setState(()=>step++);}
-Future<void> addFromBank()async{final q=await openPage<Questao>(context,QuestionBankPage(select:true,excluded:itens.map((i)=>i.questaoId).toSet()));if(q!=null && mounted)_add(q);}
-Future<void> addNew()async{final q=await openPage<Questao>(context,QuestionEditor(disciplina:disciplina.text));if(q!=null && mounted)_add(q);}
-void _add(Questao q){if(itens.any((i)=>i.questaoId==q.id))return;setState(()=>itens.add(ItemQuestionario(id:newId(),questionarioId:id,questaoId:q.id,ordem:itens.length,pontuacao:1)));}
-Future<void> _points(ItemQuestionario item)async{final c=TextEditingController(text:item.pontuacao.toString());final value=await showDialog<double>(context:context,builder:(d)=>AlertDialog(title:const Text('Pontuação da questão'),content:AppField('Pontos',controller:c,keyboardType:const TextInputType.numberWithOptions(decimal:true)),actions:[TextButton(onPressed:()=>Navigator.pop(d),child:const Text('Cancelar')),FilledButton(onPressed:(){final n=double.tryParse(c.text.replaceAll(',','.'));if(n==null||n<=0){showMessage(d,'Informe um valor positivo.',error:true);return;}Navigator.pop(d,n);},child:const Text('Salvar'))]));c.dispose();if(value!=null && mounted)setState(()=>item.pontuacao=value);}
-void reorder(int index,int delta){final to=index+delta;if(to<0||to>=itens.length)return;setState((){final item=itens.removeAt(index);itens.insert(to,item);for(var i=0;i<itens.length;i++)itens[i].ordem=i;});}
-Future<void> finish(bool publish)async{final s=AppScope.of(context);setState(()=>busy=true);final now=DateTime.now();final old=widget.initial;final q=Questionario(id:id,professorId:s.uid,titulo:titulo.text.trim(),descricao:descricao.text.trim(),itens:itens,duracaoMinutos:duracao.text.trim().isEmpty?null:int.tryParse(duracao.text),embaralharQuestoes:shuffle,dataCriacao:old?.dataCriacao??now,dataAtualizacao:now);final saved=await runAction(context,()=>s.salvarQuestionario(q),success:'Questionário salvo no banco.');if(!mounted)return;setState(()=>busy=false);if(saved==null)return;if(publish){Navigator.pushReplacement(context,MaterialPageRoute(builder:(_)=>PublicationEditor(questionarioId:saved.id)));}else{Navigator.pop(context,saved);}}
-@override Widget build(BuildContext context){final s=AppScope.of(context);final labels=['Informações','Questões','Configurações','Revisão'];return AppPage(title:widget.initial==null?'Criar Questionário':'Editar Questionário',showNavigation:false,bottom:step==3?ActionRow(children:[AppButton('Criar',outlined:true,onPressed:busy?null:()=>finish(false)),AppButton('Criar e publicar',onPressed:busy?null:()=>finish(true))]):ActionRow(children:[AppButton('Voltar',outlined:true,onPressed:step==0?()=>Navigator.pop(context):()=>setState(()=>step--)),AppButton(step==2?'Revisar':'Avançar',onPressed:next)]),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[StepHeader(step,labels),if(step==0)...[const SectionTitle('Informações básicas'),AppField('Título do Questionário',controller:titulo),const SizedBox(height:16),AppField('Descrição / Instruções',controller:descricao,lines:3),const SizedBox(height:16),AppField('Disciplina (filtro para novas questões)',controller:disciplina),const SizedBox(height:16),AppField('Duração Estimada (minutos)',controller:duracao,keyboardType:TextInputType.number,hint:'Deixe vazio para não limitar')],if(step==1)...[SectionTitle('Questões adicionadas',trailing:AppTag('${itens.length} questões • ${itens.fold<double>(0,(v,i)=>v+i.pontuacao).toStringAsFixed(1)} pts')),if(itens.isEmpty)const EmptyState('Questionário vazio','Adicione questões do banco ou crie uma nova.')else ...List.generate(itens.length,(i){final item=itens[i];final q=s.questao(item.questaoId);return Padding(padding:const EdgeInsets.only(bottom:10),child:Panel(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Row(children:[Expanded(child:Text('Questão ${i+1}',style:const TextStyle(color:AppColors.primary,fontWeight:FontWeight.w800))),AppTag(tipoLabel(q.tipo)),const SizedBox(width:5),AppTag('${item.pontuacao.toStringAsFixed(1)} pts')]),const SizedBox(height:8),Text(q.enunciado,style:const TextStyle(fontWeight:FontWeight.w600)),const SizedBox(height:10),Wrap(spacing:2,runSpacing:4,children:[TextButton.icon(onPressed:()=>openPage(context,QuestionEditor(initial:q)),icon:const Icon(Icons.edit_outlined,size:16),label:const Text('Editar')),TextButton(onPressed:()=>_points(item),child:const Text('Pontos')),IconButton(tooltip:'Mover para cima',onPressed:i==0?null:()=>reorder(i,-1),icon:const Icon(Icons.keyboard_arrow_up)),IconButton(tooltip:'Mover para baixo',onPressed:i==itens.length-1?null:()=>reorder(i,1),icon:const Icon(Icons.keyboard_arrow_down)),TextButton.icon(onPressed:()=>setState(()=>itens.removeAt(i)),icon:const Icon(Icons.delete_outline,size:16),label:const Text('Remover'),style:TextButton.styleFrom(foregroundColor:AppColors.danger))])])));}),const SizedBox(height:8),ActionRow(children:[AppButton('Buscar do Banco',outlined:true,icon:Icons.storage_outlined,onPressed:addFromBank),AppButton('Criar Nova Questão',outlined:true,icon:Icons.add_circle_outline,onPressed:addNew)])],if(step==2)...[const SectionTitle('Configurações'),Panel(padding:EdgeInsets.zero,child:SwitchListTile(title:const Text('Embaralhar questões'),subtitle:const Text('A ordem será definida ao iniciar cada tentativa.'),value:shuffle,onChanged:(v)=>setState(()=>shuffle=v))),const SizedBox(height:14),Panel(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('Duração do teste',style:TextStyle(fontWeight:FontWeight.w800)),const SizedBox(height:8),Text(duracao.text.trim().isEmpty?'Sem duração definida':'${duracao.text} minutos'),const SizedBox(height:10),const Text('Turmas, disponibilidade, tentativas e visibilidade do resultado serão configuradas separadamente em cada publicação.',style:TextStyle(fontSize:12,color:AppColors.muted))]))],if(step==3)...[const SectionTitle('Revisão do Questionário'),Panel(child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(titulo.text,style:const TextStyle(fontWeight:FontWeight.w800,fontSize:17)),const SizedBox(height:7),Text(descricao.text),const SizedBox(height:12),InfoRow('Questões','${itens.length}'),InfoRow('Pontuação total',itens.fold<double>(0,(v,i)=>v+i.pontuacao).toStringAsFixed(1)),InfoRow('Duração',duracao.text.trim().isEmpty?'Sem limite':'${duracao.text} min'),InfoRow('Embaralhar',shuffle?'Sim':'Não')])),const SizedBox(height:18),const Text('O questionário será criado como conteúdo reutilizável. Publicá-lo é uma ação independente, que pode ser repetida futuramente.',style:TextStyle(color:AppColors.muted,fontSize:13)),const SizedBox(height:16),...List.generate(itens.length,(i)=>Padding(padding:const EdgeInsets.only(bottom:8),child:Panel(child:Row(children:[AppTag('${i+1}'),const SizedBox(width:10),Expanded(child:Text(s.questao(itens[i].questaoId).enunciado,maxLines:2,overflow:TextOverflow.ellipsis)),Text('${itens[i].pontuacao} pts',style:const TextStyle(color:AppColors.muted,fontSize:12))]))))]]));}
+class QuestionnaireWizard extends StatefulWidget {
+  const QuestionnaireWizard({super.key, this.initial});
+  final Questionario? initial;
+  @override
+  State<QuestionnaireWizard> createState() => _QuestionnaireWizardState();
 }
 
-Future<DateTime?> pickDateTime(BuildContext context,DateTime initial)async{final date=await showDatePicker(context:context,initialDate:initial,firstDate:DateTime(2020),lastDate:DateTime(2100));if(date==null||!context.mounted)return null;final time=await showTimePicker(context:context,initialTime:TimeOfDay.fromDateTime(initial));if(time==null)return null;return DateTime(date.year,date.month,date.day,time.hour,time.minute);}
-class PublicationEditor extends StatefulWidget{const PublicationEditor({super.key,required this.questionarioId});final String questionarioId;@override State<PublicationEditor> createState()=>_PublicationEditorState();}
-class _PublicationEditorState extends State<PublicationEditor>{final selected=<String>{};late DateTime inicio,prazo;int limite=1;bool mostrar=true,shuffle=false,busy=false;@override void initState(){super.initState();inicio=DateTime.now();prazo=inicio.add(const Duration(days:7));}
-@override Widget build(BuildContext context){final s=AppScope.of(context);final q=s.questionario(widget.questionarioId);final classes=s.minhasTurmas;return AppPage(title:'Publicar Questionário',subtitle:q.titulo,showNavigation:false,bottom:AppButton(busy?'Publicando...':'Confirmar Publicação',onPressed:busy?null:()async{setState(()=>busy=true);final p=await runAction(context,()=>s.publicar(questionarioId:q.id,turmaIds:selected.toList(),inicio:inicio,prazo:prazo,limite:limite,mostrarResultado:mostrar,embaralhar:shuffle),success:'Publicação criada com sucesso.');if(!mounted)return;setState(()=>busy=false);if(p!=null)Navigator.pop(context,p);}),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const SectionTitle('1. Selecione as Turmas'),const Text('Você pode publicar o mesmo questionário para uma ou várias turmas.',style:TextStyle(color:AppColors.muted,fontSize:12)),const SizedBox(height:12),if(classes.isEmpty)EmptyState('Nenhuma turma','Crie uma turma antes de publicar.',action:AppButton('Voltar',onPressed:()=>Navigator.pop(context)))else Panel(padding:EdgeInsets.zero,child:Column(children:classes.map((t)=>CheckboxListTile(title:Text(t.nome),subtitle:Text(t.disciplina),value:selected.contains(t.id),onChanged:(v)=>setState((){if(v==true)selected.add(t.id);else selected.remove(t.id);}))).toList())),const SizedBox(height:20),const SectionTitle('2. Disponibilidade'),Panel(child:Column(children:[InfoRow('Início',dateLabel(inicio)),const SizedBox(height:8),AppButton('Alterar início',outlined:true,icon:Icons.event_outlined,onPressed:()async{final d=await pickDateTime(context,inicio);if(d!=null)setState(()=>inicio=d);}),const Divider(height:25),InfoRow('Prazo final',dateLabel(prazo)),const SizedBox(height:8),AppButton('Alterar prazo',outlined:true,icon:Icons.event_outlined,onPressed:()async{final d=await pickDateTime(context,prazo);if(d!=null)setState(()=>prazo=d);})])),const SizedBox(height:20),const SectionTitle('3. Tentativas e Resultados'),Panel(child:Column(children:[Row(children:[const Expanded(child:Text('Limite de Tentativas',style:TextStyle(fontWeight:FontWeight.w700))),IconButton(onPressed:limite<=1?null:()=>setState(()=>limite--),icon:const Icon(Icons.remove_circle_outline)),Text('$limite',style:const TextStyle(fontWeight:FontWeight.w800)),IconButton(onPressed:()=>setState(()=>limite++),icon:const Icon(Icons.add_circle_outline))]),const Divider(),SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('Mostrar resultado'),subtitle:const Text('Liberar nota e detalhamento ao estudante'),value:mostrar,onChanged:(v)=>setState(()=>mostrar=v)),SwitchListTile(contentPadding:EdgeInsets.zero,title:const Text('Embaralhar questões'),value:shuffle,onChanged:(v)=>setState(()=>shuffle=v))])),const SizedBox(height:18),const Text('Uma nova publicação será registrada. O questionário-base permanecerá inalterado.',style:TextStyle(fontSize:12,color:AppColors.muted))]));}}
+class _QuestionnaireWizardState extends State<QuestionnaireWizard> {
+  late final TextEditingController titulo, descricao, disciplina, duracao;
+  late final String id;
+  late List<ItemQuestionario> itens;
+  late bool shuffle;
+  int step = 0;
+  bool busy = false;
+  @override
+  void initState() {
+    super.initState();
+    final q = widget.initial;
+    id = q?.id ?? newId();
+    titulo = TextEditingController(text: q?.titulo);
+    descricao = TextEditingController(text: q?.descricao);
+    disciplina = TextEditingController();
+    duracao = TextEditingController(
+      text: q?.duracaoMinutos?.toString() ?? '45',
+    );
+    itens = q == null
+        ? []
+        : q.itens.map((i) => ItemQuestionario.fromJson(i.toJson())).toList();
+    shuffle = q?.embaralharQuestoes ?? false;
+  }
 
-class PublicationSettings extends StatefulWidget{const PublicationSettings(this.id,{super.key});final String id;@override State<PublicationSettings> createState()=>_PublicationSettingsState();}
-class _PublicationSettingsState extends State<PublicationSettings>{late DateTime prazo;late bool mostrar;bool initialized=false;@override void didChangeDependencies(){super.didChangeDependencies();if(!initialized){final p=AppScope.of(context).publicacao(widget.id);prazo=p.prazo;mostrar=p.mostrarResultado;initialized=true;}}
-@override Widget build(BuildContext context){final s=AppScope.of(context);final p=s.publicacao(widget.id);return AppPage(title:'Ajustes da Publicação',subtitle:s.conteudo(p).titulo,child:Column(children:[Panel(child:Column(children:[InfoRow('Publicação',p.id),InfoRow('Início',dateLabel(p.inicioDisponibilidade)),InfoRow('Prazo',dateLabel(prazo)),const SizedBox(height:12),AppButton('Alterar Prazo',outlined:true,onPressed:()async{final d=await pickDateTime(context,prazo);if(d!=null)setState(()=>prazo=d);})])),const SizedBox(height:14),Panel(padding:EdgeInsets.zero,child:SwitchListTile(title:const Text('Mostrar resultado'),subtitle:const Text('Liberar ou ocultar nota e detalhamento'),value:mostrar,onChanged:(v)=>setState(()=>mostrar=v))),const SizedBox(height:20),AppButton('Salvar Ajustes',onPressed:()async{final ok=await runAction(context,()=>s.ajustarPublicacao(p.id,prazo:prazo,mostrarResultado:mostrar).then((_)=>true),success:'Publicação atualizada.');if(ok==true && context.mounted)Navigator.pop(context);}),const SizedBox(height:14),AppButton('Encerrar Publicação',outlined:true,danger:true,onPressed:()async{if(await confirmAction(context,'Encerrar publicação','Novas tentativas serão bloqueadas. As respostas e resultados existentes serão preservados.',confirm:'Encerrar',destructive:true)){if(context.mounted){final ok=await runAction(context,()=>s.ajustarPublicacao(p.id,encerrar:true).then((_)=>true));if(ok==true && context.mounted)Navigator.pop(context);}}})]));}}
+  @override
+  void dispose() {
+    titulo.dispose();
+    descricao.dispose();
+    disciplina.dispose();
+    duracao.dispose();
+    super.dispose();
+  }
+
+  void next() {
+    if (step == 0 && titulo.text.trim().isEmpty) {
+      showMessage(context, 'Informe o título do questionário.', error: true);
+      return;
+    }
+    if (step == 0 &&
+        duracao.text.trim().isNotEmpty &&
+        (int.tryParse(duracao.text) == null || int.parse(duracao.text) <= 0)) {
+      showMessage(
+        context,
+        'Informe uma duração positiva ou deixe o campo vazio.',
+        error: true,
+      );
+      return;
+    }
+    if (step == 1 && itens.isEmpty) {
+      showMessage(context, 'Adicione pelo menos uma questão.', error: true);
+      return;
+    }
+    setState(() => step++);
+  }
+
+  Future<void> addFromBank() async {
+    final q = await openPage<Questao>(
+      context,
+      QuestionBankPage(
+        select: true,
+        excluded: itens.map((i) => i.questaoId).toSet(),
+      ),
+    );
+    if (q != null && mounted) _add(q);
+  }
+
+  Future<void> addNew() async {
+    final q = await openPage<Questao>(
+      context,
+      QuestionEditor(disciplina: disciplina.text),
+    );
+    if (q != null && mounted) _add(q);
+  }
+
+  void _add(Questao q) {
+    if (itens.any((i) => i.questaoId == q.id)) return;
+    setState(
+      () => itens.add(
+        ItemQuestionario(
+          id: newId(),
+          questionarioId: id,
+          questaoId: q.id,
+          ordem: itens.length,
+          pontuacao: 1,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _points(ItemQuestionario item) async {
+    final c = TextEditingController(text: item.pontuacao.toString());
+    final value = await showDialog<double>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: const Text('Pontuação da questão'),
+        content: AppField(
+          'Pontos',
+          controller: c,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(d),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final n = double.tryParse(c.text.replaceAll(',', '.'));
+              if (n == null || n <= 0) {
+                showMessage(d, 'Informe um valor positivo.', error: true);
+                return;
+              }
+              Navigator.pop(d, n);
+            },
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+    c.dispose();
+    if (value != null && mounted) setState(() => item.pontuacao = value);
+  }
+
+  void reorder(int index, int delta) {
+    final to = index + delta;
+    if (to < 0 || to >= itens.length) return;
+    setState(() {
+      final item = itens.removeAt(index);
+      itens.insert(to, item);
+      for (var i = 0; i < itens.length; i++) itens[i].ordem = i;
+    });
+  }
+
+  Future<void> finish(bool publish) async {
+    final s = AppScope.of(context);
+    setState(() => busy = true);
+    final now = DateTime.now();
+    final old = widget.initial;
+    final q = Questionario(
+      id: id,
+      professorId: s.uid,
+      titulo: titulo.text.trim(),
+      descricao: descricao.text.trim(),
+      itens: itens,
+      duracaoMinutos: duracao.text.trim().isEmpty
+          ? null
+          : int.tryParse(duracao.text),
+      embaralharQuestoes: shuffle,
+      dataCriacao: old?.dataCriacao ?? now,
+      dataAtualizacao: now,
+    );
+    final saved = await runAction(
+      context,
+      () => s.salvarQuestionario(q),
+      success: 'Questionário salvo no banco.',
+    );
+    if (!mounted) return;
+    setState(() => busy = false);
+    if (saved == null) return;
+    if (publish) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PublicationEditor(questionarioId: saved.id),
+        ),
+      );
+    } else {
+      Navigator.pop(context, saved);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppScope.of(context);
+    final labels = ['Informações', 'Questões', 'Configurações', 'Revisão'];
+    return AppPage(
+      title: widget.initial == null
+          ? 'Criar Questionário'
+          : 'Editar Questionário',
+      showNavigation: false,
+      bottom: step == 3
+          ? ActionRow(
+              children: [
+                AppButton(
+                  'Criar',
+                  outlined: true,
+                  onPressed: busy ? null : () => finish(false),
+                ),
+                AppButton(
+                  'Criar e publicar',
+                  onPressed: busy ? null : () => finish(true),
+                ),
+              ],
+            )
+          : ActionRow(
+              children: [
+                AppButton(
+                  'Voltar',
+                  outlined: true,
+                  onPressed: step == 0
+                      ? () => Navigator.pop(context)
+                      : () => setState(() => step--),
+                ),
+                AppButton(step == 2 ? 'Revisar' : 'Avançar', onPressed: next),
+              ],
+            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          StepHeader(step, labels),
+          if (step == 0) ...[
+            const SectionTitle('Informações básicas'),
+            AppField('Título do Questionário', controller: titulo),
+            const SizedBox(height: 16),
+            AppField('Descrição / Instruções', controller: descricao, lines: 3),
+            const SizedBox(height: 16),
+            AppField(
+              'Disciplina (filtro para novas questões)',
+              controller: disciplina,
+            ),
+            const SizedBox(height: 16),
+            AppField(
+              'Duração Estimada (minutos)',
+              controller: duracao,
+              keyboardType: TextInputType.number,
+              hint: 'Deixe vazio para não limitar',
+            ),
+          ],
+          if (step == 1) ...[
+            SectionTitle(
+              'Questões adicionadas',
+              trailing: AppTag(
+                '${itens.length} questões • ${itens.fold<double>(0, (v, i) => v + i.pontuacao).toStringAsFixed(1)} pts',
+              ),
+            ),
+            if (itens.isEmpty)
+              const EmptyState(
+                'Questionário vazio',
+                'Adicione questões do banco ou crie uma nova.',
+              )
+            else
+              ...List.generate(itens.length, (i) {
+                final item = itens[i];
+                final q = s.questao(item.questaoId);
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Panel(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Questão ${i + 1}',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            AppTag(tipoLabel(q.tipo)),
+                            const SizedBox(width: 5),
+                            AppTag('${item.pontuacao.toStringAsFixed(1)} pts'),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          q.enunciado,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 10),
+                        Wrap(
+                          spacing: 2,
+                          runSpacing: 4,
+                          children: [
+                            TextButton.icon(
+                              onPressed: () =>
+                                  openPage(context, QuestionEditor(initial: q)),
+                              icon: const Icon(Icons.edit_outlined, size: 16),
+                              label: const Text('Editar'),
+                            ),
+                            TextButton(
+                              onPressed: () => _points(item),
+                              child: const Text('Pontos'),
+                            ),
+                            IconButton(
+                              tooltip: 'Mover para cima',
+                              onPressed: i == 0 ? null : () => reorder(i, -1),
+                              icon: const Icon(Icons.keyboard_arrow_up),
+                            ),
+                            IconButton(
+                              tooltip: 'Mover para baixo',
+                              onPressed: i == itens.length - 1
+                                  ? null
+                                  : () => reorder(i, 1),
+                              icon: const Icon(Icons.keyboard_arrow_down),
+                            ),
+                            TextButton.icon(
+                              onPressed: () =>
+                                  setState(() => itens.removeAt(i)),
+                              icon: const Icon(Icons.delete_outline, size: 16),
+                              label: const Text('Remover'),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.danger,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+            const SizedBox(height: 8),
+            ActionRow(
+              children: [
+                AppButton(
+                  'Buscar do Banco',
+                  outlined: true,
+                  icon: Icons.storage_outlined,
+                  onPressed: addFromBank,
+                ),
+                AppButton(
+                  'Criar Nova Questão',
+                  outlined: true,
+                  icon: Icons.add_circle_outline,
+                  onPressed: addNew,
+                ),
+              ],
+            ),
+          ],
+          if (step == 2) ...[
+            const SectionTitle('Configurações'),
+            Panel(
+              padding: EdgeInsets.zero,
+              child: SwitchListTile(
+                title: const Text('Embaralhar questões'),
+                subtitle: const Text(
+                  'A ordem será definida ao iniciar cada tentativa.',
+                ),
+                value: shuffle,
+                onChanged: (v) => setState(() => shuffle = v),
+              ),
+            ),
+            const SizedBox(height: 14),
+            Panel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Duração do teste',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    duracao.text.trim().isEmpty
+                        ? 'Sem duração definida'
+                        : '${duracao.text} minutos',
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Turmas, disponibilidade, tentativas e visibilidade do resultado serão configuradas separadamente em cada publicação.',
+                    style: TextStyle(fontSize: 12, color: AppColors.muted),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (step == 3) ...[
+            const SectionTitle('Revisão do Questionário'),
+            Panel(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    titulo.text,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(descricao.text),
+                  const SizedBox(height: 12),
+                  InfoRow('Questões', '${itens.length}'),
+                  InfoRow(
+                    'Pontuação total',
+                    itens
+                        .fold<double>(0, (v, i) => v + i.pontuacao)
+                        .toStringAsFixed(1),
+                  ),
+                  InfoRow(
+                    'Duração',
+                    duracao.text.trim().isEmpty
+                        ? 'Sem limite'
+                        : '${duracao.text} min',
+                  ),
+                  InfoRow('Embaralhar', shuffle ? 'Sim' : 'Não'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'O questionário será criado como conteúdo reutilizável. Publicá-lo é uma ação independente, que pode ser repetida futuramente.',
+              style: TextStyle(color: AppColors.muted, fontSize: 13),
+            ),
+            const SizedBox(height: 16),
+            ...List.generate(
+              itens.length,
+              (i) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Panel(
+                  child: Row(
+                    children: [
+                      AppTag('${i + 1}'),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          s.questao(itens[i].questaoId).enunciado,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        '${itens[i].pontuacao} pts',
+                        style: const TextStyle(
+                          color: AppColors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+Future<DateTime?> pickDateTime(BuildContext context, DateTime initial) async {
+  final date = await showDatePicker(
+    context: context,
+    initialDate: initial,
+    firstDate: DateTime(2020),
+    lastDate: DateTime(2100),
+  );
+  if (date == null || !context.mounted) return null;
+  final time = await showTimePicker(
+    context: context,
+    initialTime: TimeOfDay.fromDateTime(initial),
+  );
+  if (time == null) return null;
+  return DateTime(date.year, date.month, date.day, time.hour, time.minute);
+}
+
+class PublicationEditor extends StatefulWidget {
+  const PublicationEditor({super.key, required this.questionarioId});
+  final String questionarioId;
+  @override
+  State<PublicationEditor> createState() => _PublicationEditorState();
+}
+
+class _PublicationEditorState extends State<PublicationEditor> {
+  final selected = <String>{};
+  late DateTime inicio, prazo;
+  int limite = 1;
+  bool mostrar = true, shuffle = false, busy = false;
+  @override
+  void initState() {
+    super.initState();
+    inicio = DateTime.now();
+    prazo = inicio.add(const Duration(days: 7));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppScope.of(context);
+    final q = s.questionario(widget.questionarioId);
+    final classes = s.minhasTurmas;
+    return AppPage(
+      title: 'Publicar Questionário',
+      subtitle: q.titulo,
+      showNavigation: false,
+      bottom: AppButton(
+        busy ? 'Publicando...' : 'Confirmar Publicação',
+        onPressed: busy
+            ? null
+            : () async {
+                setState(() => busy = true);
+                final p = await runAction(
+                  context,
+                  () => s.publicar(
+                    questionarioId: q.id,
+                    turmaIds: selected.toList(),
+                    inicio: inicio,
+                    prazo: prazo,
+                    limite: limite,
+                    mostrarResultado: mostrar,
+                    embaralhar: shuffle,
+                  ),
+                  success: 'Publicação criada com sucesso.',
+                );
+                if (!mounted) return;
+                setState(() => busy = false);
+                if (p != null) Navigator.pop(context, p);
+              },
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionTitle('1. Selecione as Turmas'),
+          const Text(
+            'Você pode publicar o mesmo questionário para uma ou várias turmas.',
+            style: TextStyle(color: AppColors.muted, fontSize: 12),
+          ),
+          const SizedBox(height: 12),
+          if (classes.isEmpty)
+            EmptyState(
+              'Nenhuma turma',
+              'Crie uma turma antes de publicar.',
+              action: AppButton(
+                'Voltar',
+                onPressed: () => Navigator.pop(context),
+              ),
+            )
+          else
+            Panel(
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: classes
+                    .map(
+                      (t) => CheckboxListTile(
+                        title: Text(t.nome),
+                        subtitle: Text(t.disciplina),
+                        value: selected.contains(t.id),
+                        onChanged: (v) => setState(() {
+                          if (v == true)
+                            selected.add(t.id);
+                          else
+                            selected.remove(t.id);
+                        }),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          const SizedBox(height: 20),
+          const SectionTitle('2. Disponibilidade'),
+          Panel(
+            child: Column(
+              children: [
+                InfoRow('Início', dateLabel(inicio)),
+                const SizedBox(height: 8),
+                AppButton(
+                  'Alterar início',
+                  outlined: true,
+                  icon: Icons.event_outlined,
+                  onPressed: () async {
+                    final d = await pickDateTime(context, inicio);
+                    if (d != null) setState(() => inicio = d);
+                  },
+                ),
+                const Divider(height: 25),
+                InfoRow('Prazo final', dateLabel(prazo)),
+                const SizedBox(height: 8),
+                AppButton(
+                  'Alterar prazo',
+                  outlined: true,
+                  icon: Icons.event_outlined,
+                  onPressed: () async {
+                    final d = await pickDateTime(context, prazo);
+                    if (d != null) setState(() => prazo = d);
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          const SectionTitle('3. Tentativas e Resultados'),
+          Panel(
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Limite de Tentativas',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: limite <= 1
+                          ? null
+                          : () => setState(() => limite--),
+                      icon: const Icon(Icons.remove_circle_outline),
+                    ),
+                    Text(
+                      '$limite',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    IconButton(
+                      onPressed: () => setState(() => limite++),
+                      icon: const Icon(Icons.add_circle_outline),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Mostrar resultado'),
+                  subtitle: const Text(
+                    'Liberar nota e detalhamento ao estudante',
+                  ),
+                  value: mostrar,
+                  onChanged: (v) => setState(() => mostrar = v),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Embaralhar questões'),
+                  value: shuffle,
+                  onChanged: (v) => setState(() => shuffle = v),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Text(
+            'Uma nova publicação será registrada. O questionário-base permanecerá inalterado.',
+            style: TextStyle(fontSize: 12, color: AppColors.muted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PublicationSettings extends StatefulWidget {
+  const PublicationSettings(this.id, {super.key});
+  final String id;
+  @override
+  State<PublicationSettings> createState() => _PublicationSettingsState();
+}
+
+class _PublicationSettingsState extends State<PublicationSettings> {
+  late DateTime prazo;
+  late bool mostrar;
+  bool initialized = false;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!initialized) {
+      final p = AppScope.of(context).publicacao(widget.id);
+      prazo = p.prazo;
+      mostrar = p.mostrarResultado;
+      initialized = true;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppScope.of(context);
+    final p = s.publicacao(widget.id);
+    return AppPage(
+      title: 'Ajustes da Publicação',
+      subtitle: s.conteudo(p).titulo,
+      child: Column(
+        children: [
+          Panel(
+            child: Column(
+              children: [
+                InfoRow('Publicação', p.id),
+                InfoRow('Início', dateLabel(p.inicioDisponibilidade)),
+                InfoRow('Prazo', dateLabel(prazo)),
+                const SizedBox(height: 12),
+                AppButton(
+                  'Alterar Prazo',
+                  outlined: true,
+                  onPressed: () async {
+                    final d = await pickDateTime(context, prazo);
+                    if (d != null) setState(() => prazo = d);
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Panel(
+            padding: EdgeInsets.zero,
+            child: SwitchListTile(
+              title: const Text('Mostrar resultado'),
+              subtitle: const Text('Liberar ou ocultar nota e detalhamento'),
+              value: mostrar,
+              onChanged: (v) => setState(() => mostrar = v),
+            ),
+          ),
+          const SizedBox(height: 20),
+          AppButton(
+            'Salvar Ajustes',
+            onPressed: () async {
+              final ok = await runAction(
+                context,
+                () => s
+                    .ajustarPublicacao(
+                      p.id,
+                      prazo: prazo,
+                      mostrarResultado: mostrar,
+                    )
+                    .then((_) => true),
+                success: 'Publicação atualizada.',
+              );
+              if (ok == true && context.mounted) Navigator.pop(context);
+            },
+          ),
+          const SizedBox(height: 14),
+          AppButton(
+            'Encerrar Publicação',
+            outlined: true,
+            danger: true,
+            onPressed: () async {
+              if (await confirmAction(
+                context,
+                'Encerrar publicação',
+                'Novas tentativas serão bloqueadas. As respostas e resultados existentes serão preservados.',
+                confirm: 'Encerrar',
+                destructive: true,
+              )) {
+                if (context.mounted) {
+                  final ok = await runAction(
+                    context,
+                    () => s
+                        .ajustarPublicacao(p.id, encerrar: true)
+                        .then((_) => true),
+                  );
+                  if (ok == true && context.mounted) Navigator.pop(context);
+                }
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
