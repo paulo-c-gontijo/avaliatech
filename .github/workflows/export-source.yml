@@ -1,0 +1,23 @@
+name: Export source
+on:
+  push:
+    branches: [feature/flutter-avaliatech]
+    paths: [.github/workflows/export-source.yml]
+  workflow_dispatch:
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: avaliatech-complete-source
+          path: |
+            .
+            !.git/
+            !build/
+            !.dart_tool/
+          include-hidden-files: true
