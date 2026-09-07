@@ -256,32 +256,29 @@ class _LoginPageState extends State<LoginPage> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: AppButton(
-                        busy ? 'Entrando...' : 'Entrar',
-                        onPressed: busy
-                            ? null
-                            : () async {
-                                setState(() => busy = true);
-                                await runAction(
-                                  context,
-                                  () => store.entrar(
-                                    email.text,
-                                    senha.text,
-                                    papel,
-                                  ),
-                                );
-                                if (mounted) setState(() => busy = false);
-                              },
-                      ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: AppButton(
+                      busy ? 'Entrando...' : 'Entrar',
+                      onPressed: busy
+                          ? null
+                          : () async {
+                              setState(() => busy = true);
+                              await runAction(
+                                context,
+                                () =>
+                                    store.entrar(email.text, senha.text, papel),
+                              );
+                              if (mounted) setState(() => busy = false);
+                            },
                     ),
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: () => openPage(context, const RegisterPage()),
-                      child: const Text('Criar conta de demonstração'),
-                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () => openPage(context, const RegisterPage()),
+                    child: const Text('Criar conta de demonstração'),
                   ),
                 ],
               ),

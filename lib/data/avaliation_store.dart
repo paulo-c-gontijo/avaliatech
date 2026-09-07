@@ -36,7 +36,7 @@ class AvaliationStore extends ChangeNotifier {
 
   // Hash local para contas de demonstração; produção exige autenticação remota.
   static String hashSenha(String senha, String salt) {
-    var bytes = utf8.encode('$salt:$senha');
+    List<int> bytes = utf8.encode('$salt:$senha');
     for (var i = 0; i < 10000; i++) {
       bytes = sha256.convert(bytes).bytes;
     }
@@ -842,7 +842,7 @@ class AvaliationStore extends ChangeNotifier {
         ultimas[t.estudanteId] = t;
     }
     final validos = ultimas.values
-        .map(resultadoDaTentativa)
+        .map((t) => resultadoDaTentativa(t.id))
         .whereType<Resultado>()
         .where((r) => !r.provisorio)
         .toList();

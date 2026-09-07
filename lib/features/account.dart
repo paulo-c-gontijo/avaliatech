@@ -48,11 +48,13 @@ class NotificationsPage extends StatelessWidget {
                               'Deseja participar de ${s.turma(c.turmaId).nome}?',
                               confirm: 'Aceitar',
                             );
-                            if (context.mounted)
+                            if (!context.mounted) return;
+                            if (accept) {
                               await runAction(
                                 context,
-                                () => s.responderConvite(c.id, accept),
+                                () => s.responderConvite(c.id, true),
                               );
+                            }
                           }
                         }
                       },
@@ -325,12 +327,15 @@ class EditProfilePage extends StatefulWidget {
 
 class _EditProfilePageState extends State<EditProfilePage> {
   late final TextEditingController nome, email;
+  bool _initialized = false;
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initialized) return;
     final u = AppScope.of(context).usuario;
     nome = TextEditingController(text: u.nome);
     email = TextEditingController(text: u.email);
+    _initialized = true;
   }
 
   @override
@@ -354,12 +359,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
           AppButton(
             'Salvar alterações',
             onPressed: () async {
-              final ok = await runAction(
-                context,
-                () => s.atualizarPerfil(nome.text, email.text),
-                success: 'Perfil atualizado.',
-              );
-              if (mounted && ok == null) Navigator.pop(context);
+              final ok = await runAction<bool>(context, () async {
+                await s.atualizarPerfil(nome.text, email.text);
+                return true;
+              }, success: 'Perfil atualizado.');
+              if (!mounted) return;
+              if (ok == true) Navigator.pop(context);
             },
           ),
         ],
@@ -397,12 +402,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
           AppButton(
             'Salvar nova senha',
             onPressed: () async {
-              await runAction(
-                context,
-                () => s.alterarSenha(antiga.text, nova.text),
-                success: 'Senha atualizada.',
-              );
-              if (mounted) Navigator.pop(context);
+              final ok = await runAction<bool>(context, () async {
+                await s.alterarSenha(antiga.text, nova.text);
+                return true;
+              }, success: 'Senha atualizada.');
+              if (!mounted) return;
+              if (ok == true) Navigator.pop(context);
             },
           ),
         ],
