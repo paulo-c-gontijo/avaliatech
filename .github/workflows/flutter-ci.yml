@@ -1,0 +1,49 @@
+name: Flutter CI
+on:
+  push:
+    branches: [main, feature/flutter-avaliatech]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Flutter version
+        run: flutter --version
+      - name: Resolve dependencies
+        run: flutter pub get
+      - name: Format source
+        run: dart format lib test
+      - name: Save source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: avaliatech-source
+          path: |
+            lib/
+            test/
+            pubspec.yaml
+            pubspec.lock
+            analysis_options.yaml
+            README.md
+            docs/
+      - name: Analyze
+        run: flutter analyze
+      - name: Test
+        run: flutter test
+      - name: Build Android debug APK
+        run: flutter build apk --debug
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: avaliatech-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
