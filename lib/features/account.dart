@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../domain/models.dart';
-import ' ../data/avaliation_store.dart';
+import '../data/avaliation_store.dart';
 import '../ui/common.dart';
 
 class NotificationsPage extends StatelessWidget {
