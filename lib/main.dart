@@ -108,7 +108,7 @@ class HomeShell extends StatelessWidget {
                 ),
               ),
           ],
-          scroll: false,
+          scroll: !isTeacher && index == 3,
           child: screens[index],
         );
       },
